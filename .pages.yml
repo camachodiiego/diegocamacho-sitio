@@ -1,0 +1,115 @@
+media:
+  input: img
+  output: /img
+  extensions: [jpg, jpeg, png, webp, svg]
+
+content:
+  - name: sitio
+    label: Textos del sitio
+    type: file
+    path: data/site.json
+    fields:
+      - { name: heroTitle, label: Titular principal, type: string }
+      - { name: heroLede, label: Frase de apoyo, type: text }
+      - { name: aboutText, label: Sobre mí, type: text }
+      - { name: email, label: Correo, type: string }
+      - { name: whatsapp, label: WhatsApp, type: string }
+      - name: ofertas
+        label: Las tres ofertas
+        type: object
+        list: true
+        fields:
+          - { name: nombre, label: Nombre, type: string }
+          - { name: precio, label: Precio, type: string }
+          - { name: descripcion, label: Descripción, type: text }
+
+  - name: producto
+    label: "Galería · Producto"
+    type: file
+    path: data/galeria-producto.json
+    fields:
+      - name: fotos
+        label: Fotos
+        type: object
+        list: true
+        fields:
+          - { name: imagen, label: Imagen, type: image }
+          - { name: alt, label: Texto alternativo (SEO), type: string }
+          - { name: ficha, label: Serie / título, type: string }
+          - { name: cliente, label: Cliente · Año, type: string }
+
+  - name: gastronomia
+    label: "Galería · Gastronomía"
+    type: file
+    path: data/galeria-gastronomia.json
+    fields:
+      - name: fotos
+        label: Fotos
+        type: object
+        list: true
+        fields:
+          - { name: imagen, label: Imagen, type: image }
+          - { name: alt, label: Texto alternativo (SEO), type: string }
+          - { name: ficha, label: Serie / título, type: string }
+          - { name: cliente, label: Cliente · Año, type: string }
+
+  - name: publicidad
+    label: "Galería · Publicidad"
+    type: file
+    path: data/galeria-publicidad.json
+    fields:
+      - name: fotos
+        label: Fotos
+        type: object
+        list: true
+        fields:
+          - { name: imagen, label: Imagen, type: image }
+          - { name: alt, label: Texto alternativo (SEO), type: string }
+          - { name: ficha, label: Serie / título, type: string }
+          - { name: cliente, label: Cliente · Año, type: string }
+
+  - name: direccion
+    label: "Galería · Dirección de set"
+    type: file
+    path: data/galeria-direccion.json
+    fields:
+      - name: fotos
+        label: Fotos
+        type: object
+        list: true
+        fields:
+          - { name: imagen, label: Imagen, type: image }
+          - { name: alt, label: Texto alternativo (SEO), type: string }
+          - { name: ficha, label: Serie / título, type: string }
+          - { name: cliente, label: Cliente · Año, type: string }
+
+  - name: home
+    label: "Galería · Obra selecta (inicio)"
+    type: file
+    path: data/galeria-home.json
+    fields:
+      - name: fotos
+        label: Fotos
+        type: object
+        list: true
+        fields:
+          - { name: imagen, label: Imagen, type: image }
+          - { name: alt, label: Texto alternativo (SEO), type: string }
+          - { name: ficha, label: Serie / título, type: string }
+          - { name: cliente, label: Cliente · Año, type: string }
+
+  - name: diario
+    label: Diario
+    type: collection
+    path: data/diario
+    filename: "{fields.fecha}-{fields.slug}.md"
+    view:
+      fields: [titulo, fecha]
+    fields:
+      - { name: titulo, label: Título, type: string }
+      - { name: fecha, label: Fecha, type: date }
+      - { name: slug, label: "Slug (URL)", type: string }
+      - { name: portada, label: Imagen de portada, type: image }
+      - { name: extracto, label: Extracto, type: text }
+      - { name: metaDescripcion, label: "Meta descripción (SEO)", type: text }
+      - { name: body, label: Contenido, type: rich-text }
