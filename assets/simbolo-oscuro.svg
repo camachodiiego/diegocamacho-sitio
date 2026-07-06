@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="Diego Camacho — símbolo sobre fondo oscuro">
+  <title>Diego Camacho — Los dos cantos (fondo oscuro)</title>
+  <path d="M42,20 C58,17 70,28 71,44 C72,61 63,76 45,78 C27,80 14,68 13,50 C12,33 25,23 42,20 Z" fill="#CFC4B0"/>
+  <path d="M60,26 C75,24 86,35 87,50 C88,66 79,79 62,81 C46,83 34,72 33,56 C32,41 44,28 60,26 Z" fill="#C98A5E" opacity="0.85" style="mix-blend-mode:screen"/>
+</svg>

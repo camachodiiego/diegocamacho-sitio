@@ -1,0 +1,12 @@
+{
+  "heroTitle": "El mismo ojo que dirige, ejecuta.",
+  "heroLede": "Fotografía y film comercial dirigidos personalmente, con la disciplina de una productora y sin las capas de una agencia. Imagen con intención de autor para marcas que no pueden permitirse contenido mediocre.",
+  "aboutText": "Soy Diego Camacho, fotógrafo y director audiovisual en Guadalajara. He dirigido producción para Amazon Business, Clase Azul, Airbnb, Mercedes-Benz, Baxter y Continental, y sostengo relaciones largas como la de Chocolatería Arnoldi. El mismo ojo que dirige la sesión es el que la ejecuta y la entrega.",
+  "email": "hola@diegocamacho.mx",
+  "whatsapp": "52 33 0000 0000",
+  "ofertas": [
+    { "nombre": "La Sesión", "precio": "$28,000 – $55,000", "descripcion": "Un día de producción dirigido por mí. Entregable curado y listo para uso — no \u201ctodas las fotos\u201d. Incluye dos rondas de ajustes." },
+    { "nombre": "La Producción", "precio": "$85,000 – $350,000", "descripcion": "Brand film o campaña foto+video: 2\u20135 días, crew bajo mi dirección, preproducción documentada. Cada Producción sale con caso de estudio." },
+    { "nombre": "El Programa", "precio": "$35,000 – $80,000 / mes", "descripcion": "Dirección audiovisual continua: días de producción al mes, banco de contenido y planeación trimestral con tu equipo de marketing." }
+  ]
+}
