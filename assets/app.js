@@ -8,7 +8,7 @@ function renderGallery(container,data){
   }
   container.innerHTML=fotos.map((f,i)=>{
     const wide=(i%4===0)?' wide':'';
-    const src=(f.imagen||'').replace(/^\/+/,'');  // quita '/' inicial: funciona en subcarpeta y en raíz
+    const src=f.imagen||'';
     const alt=f.alt||f.ficha||'Fotografía de Diego Camacho';
     const ficha=f.ficha?`<div class="ficha"><span class="n">${f.ficha}</span><span>${f.cliente||''}</span></div>`:'';
     return `<div><div class="slot${wide}"><img src="${src}" alt="${alt}" loading="lazy"></div>${ficha}</div>`;
