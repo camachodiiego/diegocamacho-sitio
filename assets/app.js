@@ -22,7 +22,7 @@ function observe(nodes){
   nodes.forEach(n=>io.observe(n));
 }
 
-/* ---------- Preloader + header + hero (el logo nunca se anima) ---------- */
+/* ---------- Preloader + header + hero (el símbolo nunca se anima) ---------- */
 function initChrome(){
   const preloader = document.getElementById('preloader');
   const hero = document.getElementById('hero');
@@ -35,9 +35,14 @@ function initChrome(){
       preloader.classList.add('done');
       if(hero) hero.classList.add('in');
     };
-    if(document.readyState === 'complete'){ setTimeout(reveal, 700); }
-    else{ window.addEventListener('load', ()=>setTimeout(reveal, 400)); }
-    setTimeout(reveal, 1500);
+    // Espera deliberada mínima (~2.2s) para que el nombre se sienta, con tope máximo de 4s.
+    const minWait = new Promise(res=>setTimeout(res, 2200));
+    const loaded = new Promise(res=>{
+      if(document.readyState === 'complete') res();
+      else window.addEventListener('load', ()=>res(), {once:true});
+    });
+    const capped = new Promise(res=>setTimeout(res, 4000));
+    Promise.race([Promise.all([minWait, loaded]), capped]).then(reveal);
   } else if(hero){ hero.classList.add('in'); }
 
   if(header){
@@ -58,6 +63,13 @@ function initChrome(){
     mobileMenu.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>toggle(false)));
     document.addEventListener('keydown', e=>{ if(e.key === 'Escape') toggle(false); });
   }
+
+  // Botón flotante de WhatsApp: aparece después de pasar el hero
+  const wa = document.getElementById('waFloat');
+  if(wa && hero){
+    const obs = new IntersectionObserver(es=>es.forEach(e=>wa.classList.toggle('shown', !e.isIntersecting)), {threshold:.05});
+    obs.observe(hero);
+  } else if(wa){ wa.classList.add('shown'); }
 }
 
 /* ---------- Lightbox ---------- */
@@ -73,10 +85,20 @@ function initLightbox(){
   lb.querySelector('#lbClose').addEventListener('click', close);
   document.addEventListener('keydown', e=>{ if(e.key === 'Escape') close(); });
   document.addEventListener('click', e=>{
-    const im = e.target.closest('.obra-piece .frame img, .obra-fullbleed .frame img');
+    const im = e.target.closest('.obra-piece .frame img, .obra-fullbleed .frame img, .hero-image img');
     if(im){ open(im.src, im.alt); }
   });
 }
+
+const PH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1.5"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5.2-5.2a1.5 1.5 0 00-2.1 0L4 20"/></svg>';
+function phInner(title, sub){ return `<div class="ph-label">${PH_ICON}<span class="pht">${title}</span><span class="phs">${sub}</span></div>`; }
+function phBlock(title, sub){ return `<div class="ph">${PH_ICON}<span>${title}${sub?' — '+sub:''}</span></div>`; }
+window.__phFallback = function(img, path){
+  const frame = img.parentElement;
+  if(!frame) return;
+  frame.classList.add('is-ph');
+  frame.innerHTML = phInner('Imagen no encontrada', 'Ruta esperada: '+path);
+};
 
 /* ---------- Textos y contacto ---------- */
 async function hydrateSite(){
@@ -92,15 +114,18 @@ async function hydrateSite(){
   });
   const cards = document.querySelector('[data-inversion]');
   if(cards && Array.isArray(site.ofertas)){
+    const roles = ['Puerta de entrada','Proyecto insignia','La columna del negocio'];
     cards.innerHTML = site.ofertas.map((o,i)=>{
-      const roles = ['Puerta de entrada','Proyecto insignia','La columna del negocio'];
+      const msg = encodeURIComponent(`Hola, me interesa "${o.nombre||''}". Cuéntame más.`);
+      const waHref = site.whatsapp ? `https://wa.me/${String(site.whatsapp).replace(/\D/g,'')}?text=${msg}` : '#';
       return `<div class="inv-card"><span class="k">${roles[i]||''}</span><h3>${o.nombre||''}</h3><p>${o.descripcion||''}</p>
-        <div class="price">Inversión desde ${o.precio||''}<small>Se cotiza a la medida tras el brief.</small></div></div>`;
+        <div class="price">Inversión desde ${o.precio||''}<small>Se cotiza a la medida tras el brief.</small></div>
+        <a class="inv-link" href="${waHref}" target="_blank">Preguntar por esta opción →</a></div>`;
     }).join('');
   }
 }
 
-/* ---------- OBRA: fusiona las 4 categorías en una sola galería envolvente ---------- */
+/* ---------- OBRA: hero + full-bleed + galería, sin repetir fotos ---------- */
 const CAT_LABELS = { producto:'Producto', gastronomia:'Gastronomía', publicidad:'Publicidad', direccion:'Dirección de set' };
 async function renderObra(){
   const cats = Object.keys(CAT_LABELS);
@@ -111,18 +136,34 @@ async function renderObra(){
     fotos.forEach(f=>items.push({cat:c, f}));
   });
 
+  const heroSlot = document.querySelector('[data-hero-image]');
   const grid = document.querySelector('[data-obra-grid]');
   const fbSlot = document.querySelector('[data-obra-fullbleed]');
 
-  // Pieza a sangre completa: prioriza "Dirección de set"; si no hay, usa la primera disponible.
+  // Hero: la primera pieza disponible, de cualquier categoría.
+  let heroItem = items[0] || null;
+  if(heroItem){ items = items.filter(it=>it!==heroItem); }
+
+  // Full-bleed de Obra: prioriza Dirección de set; nunca repite la del hero.
   let fbItem = items.find(it=>it.cat==='direccion') || items[0] || null;
   if(fbItem){ items = items.filter(it=>it!==fbItem); }
+
+  if(heroSlot){
+    if(heroItem && relSrc(heroItem.f.imagen)){
+      const src = relSrc(heroItem.f.imagen);
+      heroSlot.innerHTML = `<img src="${src}" alt="${heroItem.f.alt||heroItem.f.ficha||'Diego Camacho — fotografía y video comercial'}" onerror="window.__phFallback(this,'${src}')">`;
+    } else {
+      heroSlot.innerHTML = phBlock('Tu mejor toma abre aquí', 'sube la foto principal desde el Administrador');
+    }
+  }
 
   if(fbSlot){
     if(fbItem){
       const src = relSrc(fbItem.f.imagen);
-      const ctx = `${CAT_LABELS[fbItem.cat].toUpperCase()}${fbItem.f.cliente ? ' · '+fbItem.f.cliente.toUpperCase() : ''}`;
-      fbSlot.innerHTML = `<div class="frame">${src?`<img src="${src}" alt="${fbItem.f.alt||fbItem.f.ficha||''}" loading="lazy">`:`<div class="ph-label">Brand film — próximamente</div>`}</div>
+      const inner = src
+        ? `<img src="${src}" alt="${fbItem.f.alt||fbItem.f.ficha||''}" loading="lazy" onerror="window.__phFallback(this,'${src}')"><div class="veil"></div>`
+        : phInner(fbItem.f.ficha||'Brand film', 'sube esta foto desde el Administrador');
+      fbSlot.innerHTML = `<div class="frame${src?'':' is-ph'}">${inner}</div>
         <div class="ficha-fb"><span class="obra-ficha t" style="font-family:Newsreader,serif">${fbItem.f.ficha||'Serie destacada'}</span><span class="obra-ficha by">Dirigida por D.C.</span></div>`;
       fbSlot.classList.add('reveal-fb');
     } else {
@@ -133,6 +174,8 @@ async function renderObra(){
   if(!grid) return;
   if(!items.length){
     grid.innerHTML = '<div class="obra-empty">Estoy curando la primera selección de obra. Vuelve pronto.</div>';
+    if(heroSlot) observe([heroSlot.closest('.hero-image')].filter(Boolean));
+    if(fbSlot && fbItem) observe([fbSlot]);
     return;
   }
   grid.innerHTML = items.map((it,i)=>{
@@ -140,14 +183,18 @@ async function renderObra(){
     const src = relSrc(it.f.imagen);
     const alt = it.f.alt || it.f.ficha || 'Fotografía de Diego Camacho';
     const ctx = `${CAT_LABELS[it.cat].toUpperCase()}${it.f.cliente ? ' · '+it.f.cliente.toUpperCase() : ''}`;
+    const inner = src
+      ? `<img src="${src}" alt="${alt}" loading="lazy" onerror="window.__phFallback(this,'${src}')"><div class="veil"></div>`
+      : phInner(it.f.ficha||CAT_LABELS[it.cat], 'sube la foto desde el Administrador');
     return `<div class="obra-piece${wide}">
-      <div class="frame">${src?`<img src="${src}" alt="${alt}" loading="lazy">`:`<div class="ph-label">${it.f.ficha||CAT_LABELS[it.cat]}</div>`}<div class="veil"></div></div>
+      <div class="frame${src?'':' is-ph'}">${inner}</div>
       <div class="obra-ficha"><span><span class="t">${it.f.ficha||CAT_LABELS[it.cat]}</span><span class="ctx">${ctx}</span></span><span class="by">Dirigida por D.C.</span></div>
     </div>`;
   }).join('');
   const pieces = [...grid.children];
   pieces.forEach((el,i)=>{ el.style.transitionDelay = (i%3)*70+'ms'; });
   observe(pieces);
+  if(heroSlot) observe([heroSlot.closest('.hero-image')].filter(Boolean));
   if(fbSlot && fbItem) observe([fbSlot]);
 }
 
