@@ -1,9 +1,16 @@
+# ============================================================
+# Configuración de Pages CMS para el sitio de Diego Camacho
+# Este archivo le dice al administrador visual qué puede editar.
+# Va en la RAÍZ de tu repositorio de GitHub.
+# ============================================================
+
 media:
-  input: img
-  output: /img
+  input: img            # dónde viven las imágenes en el repo
+  output: /img          # cómo las referencia el sitio
   extensions: [jpg, jpeg, png, webp, svg]
 
 content:
+  # ---------- TEXTOS DEL SITIO (una sola ficha) ----------
   - name: sitio
     label: Textos del sitio
     type: file
@@ -23,11 +30,12 @@ content:
           - { name: precio, label: Precio, type: string }
           - { name: descripcion, label: Descripción, type: text }
 
+  # ---------- GALERÍAS POR CATEGORÍA ----------
   - name: producto
-    label: "Galería · Producto"
+    label: Galería · Producto
     type: file
     path: data/galeria-producto.json
-    fields:
+    fields: &galeria_fields
       - name: fotos
         label: Fotos
         type: object
@@ -39,77 +47,55 @@ content:
           - { name: cliente, label: Cliente · Año, type: string }
 
   - name: gastronomia
-    label: "Galería · Gastronomía"
+    label: Galería · Gastronomía
     type: file
     path: data/galeria-gastronomia.json
-    fields:
-      - name: fotos
-        label: Fotos
-        type: object
-        list: true
-        fields:
-          - { name: imagen, label: Imagen, type: image }
-          - { name: alt, label: Texto alternativo (SEO), type: string }
-          - { name: ficha, label: Serie / título, type: string }
-          - { name: cliente, label: Cliente · Año, type: string }
+    fields: *galeria_fields
 
   - name: publicidad
-    label: "Galería · Publicidad"
+    label: Galería · Publicidad
     type: file
     path: data/galeria-publicidad.json
-    fields:
-      - name: fotos
-        label: Fotos
-        type: object
-        list: true
-        fields:
-          - { name: imagen, label: Imagen, type: image }
-          - { name: alt, label: Texto alternativo (SEO), type: string }
-          - { name: ficha, label: Serie / título, type: string }
-          - { name: cliente, label: Cliente · Año, type: string }
+    fields: *galeria_fields
 
   - name: direccion
-    label: "Galería · Dirección de set"
+    label: Galería · Dirección de set
     type: file
     path: data/galeria-direccion.json
-    fields:
-      - name: fotos
-        label: Fotos
-        type: object
-        list: true
-        fields:
-          - { name: imagen, label: Imagen, type: image }
-          - { name: alt, label: Texto alternativo (SEO), type: string }
-          - { name: ficha, label: Serie / título, type: string }
-          - { name: cliente, label: Cliente · Año, type: string }
+    fields: *galeria_fields
 
-  - name: home
-    label: "Galería · Obra selecta (inicio)"
+  # ---------- TESTIMONIOS (solo reales — el sitio no inventa citas) ----------
+  - name: testimonios
+    label: Testimonios
     type: file
-    path: data/galeria-home.json
+    path: data/testimonios.json
     fields:
-      - name: fotos
-        label: Fotos
+      - name: items
+        label: Testimonios
         type: object
         list: true
         fields:
-          - { name: imagen, label: Imagen, type: image }
-          - { name: alt, label: Texto alternativo (SEO), type: string }
-          - { name: ficha, label: Serie / título, type: string }
-          - { name: cliente, label: Cliente · Año, type: string }
+          - { name: cita, label: Cita textual del cliente, type: text }
+          - { name: nombre, label: Nombre de quien lo dice, type: string }
+          - { name: rol, label: "Puesto · Empresa", type: string }
 
+  # ---------- DIARIO (BLOG PARA SEO) ----------
   - name: diario
     label: Diario
     type: collection
     path: data/diario
-    filename: "{fields.fecha}-{fields.slug}.md"
+    filename: '{fields.fecha}-{fields.slug}.md'
     view:
       fields: [titulo, fecha]
     fields:
       - { name: titulo, label: Título, type: string }
       - { name: fecha, label: Fecha, type: date }
-      - { name: slug, label: "Slug (URL)", type: string }
+      - { name: slug, label: Slug (URL), type: string }
       - { name: portada, label: Imagen de portada, type: image }
       - { name: extracto, label: Extracto, type: text }
-      - { name: metaDescripcion, label: "Meta descripción (SEO)", type: text }
+      - { name: metaDescripcion, label: Meta descripción (SEO), type: text }
       - { name: body, label: Contenido, type: rich-text }
+
+settings:
+  # analítica se conecta desde el propio Pages CMS
+  content: true
