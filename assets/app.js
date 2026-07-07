@@ -1,30 +1,28 @@
 /* ============================================================
-   Diego Camacho — app.js
-   Hidrata el sitio desde /data/*.json (editados por Pages CMS),
-   maneja el movimiento (preloader, reveal, marquesina, header),
-   el tablero "arma tu proyecto", el lightbox de galería y el diario.
+   Diego Camacho — app.js (v4, siguiendo el brief de construcción)
+   Hidrata desde /data/*.json (editados por Pages CMS), funde las
+   4 categorías en una sola galería "Obra" envolvente, maneja el
+   menú hamburguesa, el reveal al scroll, el lightbox y el diario.
    ============================================================ */
 
-/* ---------- Config: repo público para leer el Diario vía GitHub API ---------- */
-// Ajusta estos dos valores si cambias de usuario/repositorio.
 window.SITE_CONFIG = window.SITE_CONFIG || { ghOwner: "camachodiiego", ghRepo: "diegocamacho-sitio" };
 
 const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 async function loadJSON(p){ try{ const r = await fetch(p, {cache:"no-store"}); return r.ok ? await r.json() : null; }catch(e){ return null; } }
-function relSrc(p){ return (p||'').replace(/^\/+/, ''); } // rutas relativas: sirven en subcarpeta y en raíz
+function relSrc(p){ return (p||'').replace(/^\/+/, ''); }
 
 /* ---------- Reveal-on-scroll ---------- */
 let io = null;
 function observe(nodes){
   if(!nodes.length) return;
-  if(reduced()){ nodes.forEach(n=>n.classList.add('visible','in')); return; }
+  if(reduced()){ nodes.forEach(n=>n.classList.add('visible')); return; }
   io = io || new IntersectionObserver(es=>es.forEach(e=>{
-    if(e.isIntersecting){ e.target.classList.add('visible','in'); io.unobserve(e.target); }
-  }), { threshold:.14, rootMargin:'0px 0px -6% 0px' });
+    if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); }
+  }), { threshold:.12, rootMargin:'0px 0px -6% 0px' });
   nodes.forEach(n=>io.observe(n));
 }
 
-/* ---------- Preloader + hero + header ---------- */
+/* ---------- Preloader + header + hero (el logo nunca se anima) ---------- */
 function initChrome(){
   const preloader = document.getElementById('preloader');
   const hero = document.getElementById('hero');
@@ -36,27 +34,29 @@ function initChrome(){
       if(finished) return; finished = true;
       preloader.classList.add('done');
       if(hero) hero.classList.add('in');
-      if(header) header.classList.add('shown');
     };
-    if(document.readyState === 'complete'){ setTimeout(reveal, 900); }
-    else{ window.addEventListener('load', ()=>setTimeout(reveal, 500)); }
-    setTimeout(reveal, 1800); // nunca bloquea, aunque tarden las imágenes
-  } else {
-    if(hero) hero.classList.add('in');
-    if(header) header.classList.add('shown');
-  }
+    if(document.readyState === 'complete'){ setTimeout(reveal, 700); }
+    else{ window.addEventListener('load', ()=>setTimeout(reveal, 400)); }
+    setTimeout(reveal, 1500);
+  } else if(hero){ hero.classList.add('in'); }
+
   if(header){
-    window.addEventListener('scroll', ()=>{
-      header.classList.toggle('scrolled', window.scrollY > 40);
-    });
+    const onScroll = ()=> header.classList.toggle('scrolled', window.scrollY > 20);
+    onScroll();
+    window.addEventListener('scroll', onScroll);
   }
-  // WhatsApp flotante: aparece después del hero
-  const wa = document.getElementById('whatsappFloat');
-  if(wa && hero){
-    const obs = new IntersectionObserver(es=>es.forEach(e=>wa.classList.toggle('shown', !e.isIntersecting)), {threshold:.1});
-    obs.observe(hero);
-  } else if(wa){
-    wa.classList.add('shown');
+
+  // Menú hamburguesa
+  const burger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  if(burger && mobileMenu){
+    const toggle = (open)=>{
+      mobileMenu.classList.toggle('open', open);
+      burger.setAttribute('aria-expanded', String(open));
+    };
+    burger.addEventListener('click', ()=> toggle(!mobileMenu.classList.contains('open')));
+    mobileMenu.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>toggle(false)));
+    document.addEventListener('keydown', e=>{ if(e.key === 'Escape') toggle(false); });
   }
 }
 
@@ -73,70 +73,15 @@ function initLightbox(){
   lb.querySelector('#lbClose').addEventListener('click', close);
   document.addEventListener('keydown', e=>{ if(e.key === 'Escape') close(); });
   document.addEventListener('click', e=>{
-    const slot = e.target.closest('.slot img');
-    if(slot){ open(slot.src, slot.alt); }
+    const im = e.target.closest('.obra-piece .frame img, .obra-fullbleed .frame img');
+    if(im){ open(im.src, im.alt); }
   });
 }
 
-/* ---------- Galería de categoría ---------- */
-function renderGallery(container, data){
-  const fotos = (data && Array.isArray(data.fotos)) ? data.fotos : [];
-  if(!fotos.length){
-    container.innerHTML = '<p class="muted" style="grid-column:1/-1;text-align:center;padding:40px;font-family:Newsreader,serif;font-style:italic">Próximamente. Estoy curando esta selección.</p>';
-    return;
-  }
-  container.innerHTML = fotos.map((f,i)=>{
-    const wide = (i % 5 === 0) ? ' wide' : '';
-    const src = relSrc(f.imagen);
-    const alt = f.alt || f.ficha || 'Fotografía de Diego Camacho';
-    const ficha = f.ficha ? `<div class="ficha"><span class="n">${f.ficha}</span><span>${f.cliente||''}</span></div>` : '';
-    return `<div><div class="slot${wide} reveal-img"><img src="${src}" alt="${alt}" loading="lazy"></div>${ficha}</div>`;
-  }).join('');
-  const items = [...container.children];
-  items.forEach(el=>el.querySelector('.slot') && observe([el.querySelector('.slot')]));
-}
-
-/* ---------- Portadas (home) ---------- */
-const CAT_LABELS = { producto:'Producto', gastronomia:'Gastronomía', publicidad:'Publicidad', direccion:'Dirección de set' };
-async function renderCovers(container){
-  const cats = Object.keys(CAT_LABELS);
-  const datas = await Promise.all(cats.map(c=>loadJSON('data/galeria-'+c+'.json')));
-  container.innerHTML = cats.map((c,i)=>{
-    const fotos = (datas[i] && datas[i].fotos) || [];
-    const first = fotos[0];
-    const img = first ? relSrc(first.imagen) : '';
-    const client = first ? (first.cliente || '') : 'Próximamente';
-    return `<a class="cover reveal-img" href="${c}.html">
-      <div class="cover-img">${img ? `<img src="${img}" alt="${CAT_LABELS[c]}">` : ''}</div>
-      <div class="cover-meta"><div class="cover-line">
-        <span class="cover-group">${CAT_LABELS[c]}</span><span class="cover-client">${client}</span>
-      </div><span class="cover-cta">Ver galería <span class="arrow">→</span></span></div>
-    </a>`;
-  }).join('');
-  observe([...container.children]);
-}
-
-/* ---------- Tira horizontal (mezcla de categorías) ---------- */
-async function renderFeaturedStrip(container){
-  const cats = Object.keys(CAT_LABELS);
-  const datas = await Promise.all(cats.map(c=>loadJSON('data/galeria-'+c+'.json')));
-  let items = [];
-  cats.forEach((c,i)=>{
-    const fotos = (datas[i] && datas[i].fotos) || [];
-    fotos.slice(0,3).forEach(f=>items.push({cat:c, f}));
-  });
-  if(!items.length){ container.parentElement.style.display = 'none'; return; }
-  container.innerHTML = items.map(({cat,f})=>{
-    const src = relSrc(f.imagen);
-    return `<a class="fphoto" href="${cat}.html"><img src="${src}" alt="${f.alt||f.ficha||''}" loading="lazy"><span class="fphoto-tag">${CAT_LABELS[cat]} · ${f.cliente||''}</span></a>`;
-  }).join('');
-}
-
-/* ---------- Textos, ofertas, contacto ---------- */
+/* ---------- Textos y contacto ---------- */
 async function hydrateSite(){
   const site = await loadJSON('data/site.json') || {};
   document.querySelectorAll('[data-site]').forEach(el=>{ const k = el.dataset.site; if(site[k]!=null) el.textContent = site[k]; });
-  document.querySelectorAll('[data-site-html]').forEach(el=>{ const k = el.dataset.siteHtml; if(site[k]!=null) el.innerHTML = site[k]; });
   document.querySelectorAll('[data-site-mail]').forEach(el=>{ if(site.email){ el.href = 'mailto:'+site.email; if(el.dataset.siteMail==='text') el.textContent = site.email; } });
   document.querySelectorAll('[data-site-wa]').forEach(el=>{
     if(site.whatsapp){
@@ -145,90 +90,69 @@ async function hydrateSite(){
       el.href = msg ? base + '?text=' + encodeURIComponent(msg) : base;
     }
   });
+  const cards = document.querySelector('[data-inversion]');
+  if(cards && Array.isArray(site.ofertas)){
+    cards.innerHTML = site.ofertas.map((o,i)=>{
+      const roles = ['Puerta de entrada','Proyecto insignia','La columna del negocio'];
+      return `<div class="inv-card"><span class="k">${roles[i]||''}</span><h3>${o.nombre||''}</h3><p>${o.descripcion||''}</p>
+        <div class="price">Inversión desde ${o.precio||''}<small>Se cotiza a la medida tras el brief.</small></div></div>`;
+    }).join('');
+  }
 }
 
-/* ---------- Ofertas dentro del tablero de cotización ---------- */
-async function hydrateOfertas(container){
-  const site = await loadJSON('data/site.json') || {};
-  if(!Array.isArray(site.ofertas)) return;
-  const roles = ['Puerta de entrada','Proyecto insignia','La columna del negocio'];
-  container.innerHTML = site.ofertas.map((o,i)=>`
-    <li><span class="quote-num">${String(i+1).padStart(2,'0')}</span>
-      <div><h4>${o.nombre||''} <span class="muted" style="font-weight:400;font-size:.82em">— ${roles[i]||''}</span></h4>
-      <p>${o.descripcion||''} <strong style="color:var(--barro)">${o.precio||''}</strong></p></div></li>`).join('');
-}
+/* ---------- OBRA: fusiona las 4 categorías en una sola galería envolvente ---------- */
+const CAT_LABELS = { producto:'Producto', gastronomia:'Gastronomía', publicidad:'Publicidad', direccion:'Dirección de set' };
+async function renderObra(){
+  const cats = Object.keys(CAT_LABELS);
+  const datas = await Promise.all(cats.map(c=>loadJSON('data/galeria-'+c+'.json')));
+  let items = [];
+  cats.forEach((c,i)=>{
+    const fotos = (datas[i] && datas[i].fotos) || [];
+    fotos.forEach(f=>items.push({cat:c, f}));
+  });
 
-/* ---------- Clientes reales (banda de confianza) ---------- */
-function renderClients(container, list){
-  container.innerHTML = list.map(c=>`<div class="client-cell"><span>${c}</span></div>`).join('');
-}
+  const grid = document.querySelector('[data-obra-grid]');
+  const fbSlot = document.querySelector('[data-obra-fullbleed]');
 
-/* ---------- Testimonios (honesto: solo muestra los reales que Diego suba) ---------- */
-async function hydrateTestimonios(container){
-  const data = await loadJSON('data/testimonios.json');
-  const items = (data && Array.isArray(data.items)) ? data.items.filter(t=>t.cita) : [];
+  // Pieza a sangre completa: prioriza "Dirección de set"; si no hay, usa la primera disponible.
+  let fbItem = items.find(it=>it.cat==='direccion') || items[0] || null;
+  if(fbItem){ items = items.filter(it=>it!==fbItem); }
+
+  if(fbSlot){
+    if(fbItem){
+      const src = relSrc(fbItem.f.imagen);
+      const ctx = `${CAT_LABELS[fbItem.cat].toUpperCase()}${fbItem.f.cliente ? ' · '+fbItem.f.cliente.toUpperCase() : ''}`;
+      fbSlot.innerHTML = `<div class="frame">${src?`<img src="${src}" alt="${fbItem.f.alt||fbItem.f.ficha||''}" loading="lazy">`:`<div class="ph-label">Brand film — próximamente</div>`}</div>
+        <div class="ficha-fb"><span class="obra-ficha t" style="font-family:Newsreader,serif">${fbItem.f.ficha||'Serie destacada'}</span><span class="obra-ficha by">Dirigida por D.C.</span></div>`;
+      fbSlot.classList.add('reveal-fb');
+    } else {
+      fbSlot.style.display = 'none';
+    }
+  }
+
+  if(!grid) return;
   if(!items.length){
-    container.innerHTML = '<div class="testimonials-empty">Los primeros testimonios de este ciclo están por publicarse aquí — directo de las marcas con las que trabajo.</div>';
+    grid.innerHTML = '<div class="obra-empty">Estoy curando la primera selección de obra. Vuelve pronto.</div>';
     return;
   }
-  container.innerHTML = items.map(t=>{
-    const initials = (t.nombre||'??').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-    return `<div class="testimonial"><blockquote>"${t.cita}"</blockquote>
-      <div class="testimonial-author"><div class="avatar">${initials}</div>
-      <div>${t.nombre||''}<span>${t.rol||''}</span></div></div></div>`;
+  grid.innerHTML = items.map((it,i)=>{
+    const wide = (i>0 && i % 5 === 0) ? ' wide' : '';
+    const src = relSrc(it.f.imagen);
+    const alt = it.f.alt || it.f.ficha || 'Fotografía de Diego Camacho';
+    const ctx = `${CAT_LABELS[it.cat].toUpperCase()}${it.f.cliente ? ' · '+it.f.cliente.toUpperCase() : ''}`;
+    return `<div class="obra-piece${wide}">
+      <div class="frame">${src?`<img src="${src}" alt="${alt}" loading="lazy">`:`<div class="ph-label">${it.f.ficha||CAT_LABELS[it.cat]}</div>`}<div class="veil"></div></div>
+      <div class="obra-ficha"><span><span class="t">${it.f.ficha||CAT_LABELS[it.cat]}</span><span class="ctx">${ctx}</span></span><span class="by">Dirigida por D.C.</span></div>
+    </div>`;
   }).join('');
+  const pieces = [...grid.children];
+  pieces.forEach((el,i)=>{ el.style.transitionDelay = (i%3)*70+'ms'; });
+  observe(pieces);
+  if(fbSlot && fbItem) observe([fbSlot]);
 }
 
-/* ---------- Tablero "arma tu proyecto" (drag + mezcla de color) ---------- */
-function initBuildBoard(){
-  const field = document.getElementById('buildField');
-  if(!field) return;
-  const zone = document.getElementById('buildZone');
-  const countEl = document.getElementById('buildCount');
-  const chips = field.querySelectorAll('.chip');
-  const canDrag = window.matchMedia('(min-width: 721px)').matches;
-  if(!canDrag) return;
-  let active=null, offX=0, offY=0;
-  function hexToRgb(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
-  function zoneRect(){ return zone.getBoundingClientRect(); }
-  function inZone(cx,cy){ const z=zoneRect(),r=z.width/2,dx=cx-(z.left+r),dy=cy-(z.top+z.height/2); return (dx*dx+dy*dy)<=r*r; }
-  function updateMix(){
-    const inside=[...chips].filter(c=>{ const cr=c.getBoundingClientRect(); return inZone(cr.left+cr.width/2, cr.top+cr.height/2); });
-    if(!inside.length){ zone.style.removeProperty('--mix'); zone.classList.remove('filled'); countEl.textContent=''; return; }
-    let r=0,g=0,b=0; inside.forEach(c=>{ const [cr,cg,cb]=hexToRgb(c.dataset.color); r+=cr;g+=cg;b+=cb; });
-    r=Math.round(r/inside.length); g=Math.round(g/inside.length); b=Math.round(b/inside.length);
-    zone.style.setProperty('--mix', `rgb(${r},${g},${b})`);
-    zone.classList.add('filled');
-    countEl.textContent = inside.length + (inside.length===1?' pieza':' piezas');
-  }
-  function onDown(e){
-    const chip=e.currentTarget; active=chip; chip.classList.add('dragging','placed'); chip.setPointerCapture(e.pointerId);
-    const r=chip.getBoundingClientRect(), f=field.getBoundingClientRect();
-    offX=e.clientX-r.left; offY=e.clientY-r.top;
-    chip.style.left=(r.left-f.left)+'px'; chip.style.top=(r.top-f.top)+'px';
-    chip.style.removeProperty('--x'); chip.style.removeProperty('--y');
-  }
-  function onMove(e){
-    if(!active) return;
-    const f=field.getBoundingClientRect();
-    let nx=e.clientX-f.left-offX, ny=e.clientY-f.top-offY;
-    nx=Math.max(0,Math.min(nx,f.width-active.offsetWidth)); ny=Math.max(0,Math.min(ny,f.height-active.offsetHeight));
-    active.style.left=nx+'px'; active.style.top=ny+'px';
-    zone.classList.toggle('hot', inZone(e.clientX,e.clientY));
-  }
-  function onUp(){ if(!active) return; active.classList.remove('dragging'); zone.classList.remove('hot'); updateMix(); active=null; }
-  chips.forEach(chip=>{
-    chip.addEventListener('pointerdown', onDown);
-    chip.addEventListener('pointermove', onMove);
-    chip.addEventListener('pointerup', onUp);
-    chip.addEventListener('pointercancel', onUp);
-    chip.addEventListener('dragstart', e=>e.preventDefault());
-  });
-}
-
-/* ---------- Diario: listado, leyendo el repo público vía GitHub API ---------- */
+/* ---------- Diario: listado vía GitHub API (páginas secundarias) ---------- */
 function simpleMarkdown(md){
-  // Conversor mínimo: encabezados, negritas, cursivas, enlaces y párrafos.
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const lines = md.replace(/\r\n/g,'\n').split(/\n{2,}/);
   return lines.map(block=>{
@@ -300,37 +224,20 @@ async function renderDiarioPost(){
     <div class="post-body">${simpleMarkdown(post.body||'')}</div>`;
 }
 
-/* ---------- Bloques estáticos que necesitan reveal ---------- */
+/* ---------- Reveal de bloques estáticos restantes ---------- */
 function tagStatic(){
-  document.querySelectorAll('.section-head, .contact-card, .about-visual, .about-text, .process, .testimonials-grid, .quote-grid, .featured').forEach(el=>{
-    if(!el.classList.contains('reveal') && !el.classList.contains('reveal-img')) el.classList.add('reveal');
+  document.querySelectorAll('.sec-head, .sobre-visual, .sobre-text, .proceso-grid, .inv-grid, .inv-foot').forEach(el=>{
+    if(!el.classList.contains('reveal')) el.classList.add('reveal');
   });
-  document.querySelectorAll('.process-step, .quote-list li').forEach((el,i)=>{ el.classList.add('reveal'); el.style.transitionDelay=(i%4)*70+'ms'; });
-  observe([...document.querySelectorAll('.reveal:not(.visible), .reveal-img:not(.visible)')]);
+  observe([...document.querySelectorAll('.reveal:not(.visible)')]);
 }
 
 /* ---------- Arranque ---------- */
 document.addEventListener('DOMContentLoaded', async ()=>{
   initChrome();
   initLightbox();
-  initBuildBoard();
-
   await hydrateSite();
-
-  const ofertasList = document.querySelector('[data-ofertas-list]');
-  if(ofertasList) await hydrateOfertas(ofertasList);
-
-  const covers = document.querySelector('[data-covers]');
-  if(covers) await renderCovers(covers);
-
-  const strip = document.querySelector('[data-featured-strip]');
-  if(strip) await renderFeaturedStrip(strip);
-
-  const testi = document.querySelector('[data-testimonios]');
-  if(testi) await hydrateTestimonios(testi);
-
-  const gallery = document.querySelector('[data-gallery]');
-  if(gallery){ const d = await loadJSON('data/galeria-'+gallery.dataset.gallery+'.json'); renderGallery(gallery, d); }
+  await renderObra();
 
   const diarioList = document.querySelector('[data-diario-list]');
   if(diarioList) await renderDiarioList(diarioList);
